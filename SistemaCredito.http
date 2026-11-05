@@ -1,0 +1,6 @@
+@SistemaCredito_HostAddress = http://localhost:5004
+
+GET {{SistemaCredito_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
