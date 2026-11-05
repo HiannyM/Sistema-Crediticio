@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SNIC_RD.Models;
 
 
 var builder = WebApplication.CreateBuilder(args);
