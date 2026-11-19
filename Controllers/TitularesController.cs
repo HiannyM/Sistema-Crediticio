@@ -15,6 +15,13 @@ namespace SNIC_RD.Controllers
             _context = context;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetAllTitulares()
+        {
+            var titulares = await _context.Titulars.ToListAsync();
+            return Ok(titulares);
+        }
+
         // GET: api/titulares/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTitularById(int id)

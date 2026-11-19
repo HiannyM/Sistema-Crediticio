@@ -15,6 +15,13 @@ namespace SNIC_RD.Controllers
             _context = context;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetAllCreditos()
+        {
+            var operaciones = await _context.OperacionCreditos.ToListAsync();
+            return Ok(operaciones);
+        }
+
         [HttpGet("titular/{idTitular}")]
         public async Task<IActionResult> GetCreditosByTitular(int idTitular)
         {
