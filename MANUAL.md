@@ -14,8 +14,11 @@ Abre PowerShell en la carpeta del proyecto y ejecuta:
 
 ```powershell
 dotnet restore
+$env:Jwt__Key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 dotnet run --launch-profile http
 ```
+
+La aplicación requiere `Jwt__Key` como variable de entorno y exige una clave de al menos 32 bytes. No guardes esa clave en el repositorio. La configuración de desarrollo establece `Jwt:Issuer`, `Jwt:Audience` y una duración de 60 minutos; en otros entornos configura también esos valores mediante variables como `Jwt__Issuer`, `Jwt__Audience` y `Jwt__AccessTokenExpirationMinutes`.
 
 El perfil `http` inicia la aplicación en `http://localhost:5004` y establece el entorno `Development`, que es donde Swagger está habilitado. Mantén abierta la terminal mientras uses la API. Para detenerla, presiona `Ctrl+C`.
 
@@ -36,9 +39,26 @@ Con el perfil HTTP, abre:
 
 Swagger muestra las operaciones disponibles y permite probarlas desde el navegador. Si la página no abre, confirma que `dotnet run` sigue activo y que la aplicación está en el entorno `Development`.
 
+## Autenticación
+
+El endpoint `POST /api/Auth/login` no requiere token. Envía el correo y la contraseña de un usuario existente:
+
+```json
+{
+  "correo": "usuario@example.com",
+  "contrasena": "tu-contrasena"
+}
+```
+
+Si las credenciales son correctas, la respuesta incluye `token` y `expiraEn`. En Swagger, pulsa **Authorize**, pega el token (sin escribir `Bearer`) y autoriza. Las operaciones de la API requieren ese token en el encabezado `Authorization: Bearer <token>`.
+
+Los usuarios existentes con contraseñas en texto simple se migran a un hash seguro al iniciar sesión correctamente. Las contraseñas ya almacenadas como hash se verifican y no se devuelven en ninguna respuesta.
+
+Las solicitudes protegidas devuelven `401 Unauthorized` con un detalle identificable cuando no se envía token, el token no es válido o ya expiró. Para obtener acceso nuevamente, inicia sesión y usa el token nuevo.
+
 ## Operaciones disponibles
 
-Todas las operaciones son solicitudes `GET`; no requieren cuerpo ni autenticación. En Swagger, selecciona una operación, pulsa **Try it out**, completa los parámetros si los hay y luego **Execute**.
+Las consultas son solicitudes `GET` y requieren autenticación. En Swagger, inicia sesión, autoriza con el token, selecciona una operación, pulsa **Try it out**, completa los parámetros si los hay y luego **Execute**.
 
 | Operación | Ruta | Resultado |
 |---|---|---|
@@ -87,12 +107,15 @@ Las consultas necesitan una conexión válida a SQL Server y datos disponibles e
 Con la aplicación ejecutándose en el perfil HTTP, estas solicitudes permiten probar los endpoints:
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:5004/api/Titulares"
-Invoke-RestMethod -Uri "http://localhost:5004/api/Titulares/1"
-Invoke-RestMethod -Uri "http://localhost:5004/api/Creditos/titular/1"
-Invoke-RestMethod -Uri "http://localhost:5004/api/Roles"
-Invoke-RestMethod -Uri "http://localhost:5004/api/Usuarios"
-Invoke-RestMethod -Uri "http://localhost:5004/api/Pagos/1"
+$login = Invoke-RestMethod -Uri "http://localhost:5004/api/Auth/login" -Method Post `
+  -ContentType "application/json" -Body '{"correo":"usuario@example.com","contrasena":"tu-contrasena"}'
+$headers = @{ Authorization = "Bearer $($login.token)" }
+Invoke-RestMethod -Uri "http://localhost:5004/api/Titulares" -Headers $headers
+Invoke-RestMethod -Uri "http://localhost:5004/api/Titulares/1" -Headers $headers
+Invoke-RestMethod -Uri "http://localhost:5004/api/Creditos/titular/1" -Headers $headers
+Invoke-RestMethod -Uri "http://localhost:5004/api/Roles" -Headers $headers
+Invoke-RestMethod -Uri "http://localhost:5004/api/Usuarios" -Headers $headers
+Invoke-RestMethod -Uri "http://localhost:5004/api/Pagos/1" -Headers $headers
 ```
 
 Sustituye los IDs de ejemplo por valores que existan en tu base de datos. Para revisar el estado HTTP y el cuerpo de una respuesta de error, puedes usar Swagger o una herramienta HTTP como la extensión REST Client de VS Code.
